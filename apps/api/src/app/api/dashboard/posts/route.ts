@@ -2,6 +2,7 @@ import { type NextRequest } from "next/server";
 import { prisma } from "@community/database";
 import { requireAuth } from "../../../../middleware/auth";
 import { requireCreator } from "../../../../middleware/rbac";
+import { logAudit, getClientIp } from "../../../../middleware/auditLogger";
 import { applyRateLimit } from "../../../../middleware/rateLimiter";
 import { success, error, handleRequest } from "../../../../utils/response";
 import { createPostSchema } from "@community/validators";
@@ -60,6 +61,14 @@ export async function POST(request: NextRequest) {
         visibility: parsed.data.visibility ?? "PUBLIC",
         publishedAt: new Date(),
       },
+    });
+
+    logAudit({
+      auth,
+      action: "CREATE_CONTENT",
+      resourceType: "post",
+      resourceId: post.id,
+      ipAddress: getClientIp(request),
     });
 
     return success(post, 201);

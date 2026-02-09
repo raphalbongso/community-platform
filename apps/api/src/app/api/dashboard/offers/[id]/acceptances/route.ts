@@ -3,6 +3,7 @@ import { prisma } from "@community/database";
 import { requireAuth } from "../../../../../../middleware/auth";
 import { requireCreator } from "../../../../../../middleware/rbac";
 import { requireOfferOwner } from "../../../../../../middleware/ownership";
+import { logAudit, getClientIp } from "../../../../../../middleware/auditLogger";
 import { applyRateLimit } from "../../../../../../middleware/rateLimiter";
 import { success, handleRequest } from "../../../../../../utils/response";
 
@@ -31,6 +32,15 @@ export async function GET(
           select: { id: true, username: true, displayName: true, email: true, avatarUrl: true },
         },
       },
+    });
+
+    logAudit({
+      auth,
+      action: "ACCESS_OFFER_DATA",
+      resourceType: "offerAcceptances",
+      resourceId: offerId,
+      metadata: { count: acceptances.length },
+      ipAddress: getClientIp(request),
     });
 
     return success({ items: acceptances });

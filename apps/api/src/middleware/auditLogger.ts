@@ -7,8 +7,16 @@ export type AuditAction =
   | "MODIFY_TIER"
   | "PROCESS_PAYMENT"
   | "CREATE_OFFER"
+  | "MODIFY_OFFER"
+  | "DELETE_OFFER"
   | "MODIFY_INITIATIVE"
-  | "ACCESS_SUPPORTER_DATA";
+  | "CREATE_INITIATIVE"
+  | "ACCESS_SUPPORTER_DATA"
+  | "ACCESS_OFFER_DATA"
+  | "CREATE_CONTENT"
+  | "MODIFY_CONTENT"
+  | "DELETE_CONTENT"
+  | "DELETE_SNAPSHOT";
 
 interface AuditLogEntry {
   auth: AuthContext;
@@ -28,10 +36,10 @@ export function logAudit(entry: AuditLogEntry): void {
   prisma.auditLog
     .create({
       data: {
-        userId: entry.auth.userId,
+        actorId: entry.auth.userId,
         action: entry.action,
-        resourceType: entry.resourceType,
-        resourceId: entry.resourceId,
+        entityType: entry.resourceType,
+        entityId: entry.resourceId,
         metadata: entry.metadata ?? {},
         ipAddress: entry.ipAddress ?? null,
       },

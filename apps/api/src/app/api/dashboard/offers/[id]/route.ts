@@ -3,6 +3,7 @@ import { prisma } from "@community/database";
 import { requireAuth } from "../../../../../middleware/auth";
 import { requireCreator } from "../../../../../middleware/rbac";
 import { requireOfferOwner } from "../../../../../middleware/ownership";
+import { logAudit, getClientIp } from "../../../../../middleware/auditLogger";
 import { success, error, handleRequest } from "../../../../../utils/response";
 
 export async function GET(
@@ -57,6 +58,15 @@ export async function PATCH(
       data: updates,
     });
 
+    logAudit({
+      auth,
+      action: "MODIFY_OFFER",
+      resourceType: "acquisitionOffer",
+      resourceId: id,
+      metadata: { fields: Object.keys(updates) },
+      ipAddress: getClientIp(request),
+    });
+
     return success(offer);
   });
 }
@@ -72,6 +82,15 @@ export async function DELETE(
     await requireOfferOwner(auth, id);
 
     await prisma.acquisitionOffer.delete({ where: { id } });
+
+    logAudit({
+      auth,
+      action: "DELETE_OFFER",
+      resourceType: "acquisitionOffer",
+      resourceId: id,
+      ipAddress: getClientIp(request),
+    });
+
     return success({ deleted: true });
   });
 }

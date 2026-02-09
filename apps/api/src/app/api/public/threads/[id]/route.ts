@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { prisma } from "@community/database";
+import { sanitizeForPublic } from "../../../../../middleware/sanitizer";
 import { success, error, handleRequest } from "../../../../../utils/response";
 import { applyRateLimit } from "../../../../../middleware/rateLimiter";
 
@@ -49,7 +50,7 @@ export async function GET(
       data: { viewCount: { increment: 1 } },
     }).catch(() => {});
 
-    return success({
+    return success(sanitizeForPublic({
       id: thread.id,
       forumId: thread.forumId,
       author: thread.author,
@@ -68,6 +69,6 @@ export async function GET(
         body: c.body,
         createdAt: c.createdAt,
       })),
-    });
+    }));
   });
 }

@@ -25,16 +25,20 @@ export async function POST(
 
     const post = await prisma.post.findUnique({
       where: { id: postId },
-      select: { id: true, visibility: true },
+      select: { id: true, visibility: true, initiativeId: true },
     });
 
     if (!post) {
       return error("NOT_FOUND", "Post not found", 404);
     }
 
+    // Check entitlement for the specific initiative
     if (post.visibility === "SUPPORTERS") {
       const hasEntitlement = await prisma.entitlement.findFirst({
-        where: { userId: auth.userId },
+        where: {
+          userId: auth.userId,
+          ...(post.initiativeId ? { initiativeId: post.initiativeId } : {}),
+        },
       });
       if (!hasEntitlement && auth.role !== "ADMIN") {
         return error("FORBIDDEN", "Supporters-only content", 403);

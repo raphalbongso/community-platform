@@ -3,6 +3,7 @@ import { prisma } from "@community/database";
 import { requireAuth } from "../../../../../../../middleware/auth";
 import { requireCreator } from "../../../../../../../middleware/rbac";
 import { requireInitiativeOwner } from "../../../../../../../middleware/ownership";
+import { logAudit, getClientIp } from "../../../../../../../middleware/auditLogger";
 import { success, error, handleRequest } from "../../../../../../../utils/response";
 
 export async function PATCH(
@@ -31,6 +32,15 @@ export async function PATCH(
       data: updates,
     });
 
+    logAudit({
+      auth,
+      action: "MODIFY_CONTENT",
+      resourceType: "milestone",
+      resourceId: milestoneId,
+      metadata: { initiativeId, fields: Object.keys(updates) },
+      ipAddress: getClientIp(request),
+    });
+
     return success(milestone);
   });
 }
@@ -47,6 +57,15 @@ export async function DELETE(
 
     await prisma.milestone.delete({
       where: { id: milestoneId, initiativeId },
+    });
+
+    logAudit({
+      auth,
+      action: "DELETE_CONTENT",
+      resourceType: "milestone",
+      resourceId: milestoneId,
+      metadata: { initiativeId },
+      ipAddress: getClientIp(request),
     });
 
     return success({ deleted: true });

@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { prisma } from "@community/database";
+import { sanitizeForPublic } from "../../../../middleware/sanitizer";
 import { success, handleRequest } from "../../../../utils/response";
 import { applyRateLimit } from "../../../../middleware/rateLimiter";
 
@@ -29,6 +30,6 @@ export async function GET(request: NextRequest) {
       threadCount: f._count.threads,
     }));
 
-    return success({ items });
+    return success(sanitizeForPublic({ items }));
   });
 }

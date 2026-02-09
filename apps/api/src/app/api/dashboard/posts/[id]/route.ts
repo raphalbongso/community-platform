@@ -3,6 +3,7 @@ import { prisma } from "@community/database";
 import { requireAuth } from "../../../../../middleware/auth";
 import { requireCreator } from "../../../../../middleware/rbac";
 import { requirePostOwner } from "../../../../../middleware/ownership";
+import { logAudit, getClientIp } from "../../../../../middleware/auditLogger";
 import { success, error, handleRequest } from "../../../../../utils/response";
 
 export async function GET(
@@ -55,6 +56,15 @@ export async function PATCH(
       data: updates,
     });
 
+    logAudit({
+      auth,
+      action: "MODIFY_CONTENT",
+      resourceType: "post",
+      resourceId: id,
+      metadata: { fields: Object.keys(updates) },
+      ipAddress: getClientIp(request),
+    });
+
     return success(post);
   });
 }
@@ -70,6 +80,15 @@ export async function DELETE(
     await requirePostOwner(auth, id);
 
     await prisma.post.delete({ where: { id } });
+
+    logAudit({
+      auth,
+      action: "DELETE_CONTENT",
+      resourceType: "post",
+      resourceId: id,
+      ipAddress: getClientIp(request),
+    });
+
     return success({ deleted: true });
   });
 }

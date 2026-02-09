@@ -2,6 +2,7 @@ import { type NextRequest } from "next/server";
 import { prisma } from "@community/database";
 import { requireAuth } from "../../../../../middleware/auth";
 import { requireCreator } from "../../../../../middleware/rbac";
+import { logAudit, getClientIp } from "../../../../../middleware/auditLogger";
 import { success, error, handleRequest } from "../../../../../utils/response";
 
 export async function GET(
@@ -52,6 +53,15 @@ export async function DELETE(
     }
 
     await prisma.snapshot.delete({ where: { id } });
+
+    logAudit({
+      auth,
+      action: "DELETE_SNAPSHOT",
+      resourceType: "snapshot",
+      resourceId: id,
+      ipAddress: getClientIp(request),
+    });
+
     return success({ deleted: true });
   });
 }

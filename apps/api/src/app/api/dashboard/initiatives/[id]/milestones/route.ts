@@ -3,6 +3,7 @@ import { prisma } from "@community/database";
 import { requireAuth } from "../../../../../../middleware/auth";
 import { requireCreator } from "../../../../../../middleware/rbac";
 import { requireInitiativeOwner } from "../../../../../../middleware/ownership";
+import { logAudit, getClientIp } from "../../../../../../middleware/auditLogger";
 import { applyRateLimit } from "../../../../../../middleware/rateLimiter";
 import { success, error, handleRequest } from "../../../../../../utils/response";
 import { createMilestoneSchema } from "@community/validators";
@@ -58,6 +59,15 @@ export async function POST(
         description: parsed.data.description ?? null,
         position: (maxPosition._max.position ?? -1) + 1,
       },
+    });
+
+    logAudit({
+      auth,
+      action: "CREATE_CONTENT",
+      resourceType: "milestone",
+      resourceId: milestone.id,
+      metadata: { initiativeId },
+      ipAddress: getClientIp(request),
     });
 
     return success(milestone, 201);

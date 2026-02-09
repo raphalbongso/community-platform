@@ -2,6 +2,7 @@ import { type NextRequest } from "next/server";
 import { prisma } from "@community/database";
 import { requireAuth } from "../../../../middleware/auth";
 import { requireCreator } from "../../../../middleware/rbac";
+import { logAudit, getClientIp } from "../../../../middleware/auditLogger";
 import { applyRateLimit } from "../../../../middleware/rateLimiter";
 import { success, error, handleRequest } from "../../../../utils/response";
 import { createInitiativeSchema } from "@community/validators";
@@ -76,6 +77,14 @@ export async function POST(request: NextRequest) {
         coverUrl: coverUrl ?? null,
         status: "DRAFT",
       },
+    });
+
+    logAudit({
+      auth,
+      action: "CREATE_INITIATIVE",
+      resourceType: "initiative",
+      resourceId: initiative.id,
+      ipAddress: getClientIp(request),
     });
 
     return success(initiative, 201);

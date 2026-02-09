@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
           },
         },
       });
-      results.creators = creators;
+      results.creators = sanitizeForPublic(creators);
     }
 
     if (type === "all" || type === "posts") {
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
           },
         },
       });
-      results.threads = threads;
+      results.threads = sanitizeForPublic(threads);
     }
 
     return success({ query: q, results });

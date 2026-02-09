@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { prisma } from "@community/database";
+import { sanitizeForPublic } from "../../../../../../middleware/sanitizer";
 import { success, error, handleRequest } from "../../../../../../utils/response";
 import { applyRateLimit } from "../../../../../../middleware/rateLimiter";
 
@@ -49,7 +50,7 @@ export async function GET(
     const items = hasMore ? threads.slice(0, limit) : threads;
     const nextCursor = hasMore ? items[items.length - 1].id : null;
 
-    return success({
+    return success(sanitizeForPublic({
       items: items.map((t) => ({
         id: t.id,
         author: t.author,
@@ -63,6 +64,6 @@ export async function GET(
       })),
       nextCursor,
       hasMore,
-    });
+    }));
   });
 }

@@ -78,6 +78,6 @@ export async function GET(
       createdAt: initiative.createdAt,
     };
 
-    return success(data);
+    return success(sanitizeForPublic(data));
   });
 }
