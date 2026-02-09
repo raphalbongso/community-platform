@@ -15,7 +15,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {children}
       <footer className="border-t border-gray-200 bg-white mt-16">
         <div className="max-w-7xl mx-auto px-4 py-6 text-center text-xs text-gray-400">
-          Support is voluntary and creator-defined. This platform does not offer financial returns.
+          Support is voluntary and creator-defined. This platform does not guarantee any financial outcome.
         </div>
       </footer>
     </div>

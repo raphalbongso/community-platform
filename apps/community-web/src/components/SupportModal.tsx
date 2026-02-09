@@ -47,7 +47,7 @@ export function SupportModal({ open, onClose, initiativeTitle, tiers }: SupportM
     <Modal open={open} onClose={onClose} title={`Support: ${initiativeTitle}`}>
       <div className="space-y-3">
         <p className="text-sm text-gray-600 mb-4">
-          Choose a support tier. This is a voluntary contribution and does not represent a financial investment.
+          Choose a support tier. This is a voluntary contribution and does not constitute a financial obligation.
         </p>
         {tiers.map((tier) => (
           <button
