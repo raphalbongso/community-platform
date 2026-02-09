@@ -1,0 +1,556 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  FAN
+  CREATOR
+  ADMIN
+}
+
+enum InitiativeStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+enum PostType {
+  UPDATE
+  ANNOUNCEMENT
+  DROP
+}
+
+enum Visibility {
+  PUBLIC
+  SUPPORTERS
+}
+
+enum ForumScope {
+  GLOBAL
+  CREATOR
+  INITIATIVE
+  COMMUNITY
+}
+
+enum PaymentProvider {
+  STRIPE
+  CRYPTO
+}
+
+enum EntitlementSource {
+  PURCHASE
+  TRANSFER
+  GRANT
+}
+
+enum OfferStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum AcceptanceStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+// ============================================================================
+// CORE ENTITIES
+// ============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique @db.VarChar(30)
+  displayName   String    @db.VarChar(100)
+  avatarUrl     String?
+  role          UserRole  @default(FAN)
+  emailVerified Boolean   @default(false)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+
+  creatorProfile CreatorProfile?
+  initiatives    Initiative[]      @relation("CreatorInitiatives")
+  posts          Post[]            @relation("AuthorPosts")
+  threads        Thread[]          @relation("AuthorThreads")
+  comments       Comment[]         @relation("AuthorComments")
+  purchases      Purchase[]        @relation("BuyerPurchases")
+  entitlements   Entitlement[]     @relation("UserEntitlements")
+  snapshots      Snapshot[]        @relation("CreatorSnapshots")
+  offers         AcquisitionOffer[] @relation("CreatorOffers")
+  acceptances    OfferAcceptance[] @relation("AccepterAcceptances")
+  auditLogs      AuditLog[]        @relation("ActorAuditLogs")
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([createdAt])
+}
+
+model CreatorProfile {
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bio             String?  @db.Text
+  genreTags       String[] @default([])
+  socials         Json?
+  verified        Boolean  @default(false)
+  verifiedAt      DateTime?
+
+  reputationScore Int      @default(0)
+  followerCount   Int      @default(0)
+
+  updatedAt       DateTime @updatedAt
+
+  @@index([verified])
+  @@index([reputationScore])
+}
+
+// ============================================================================
+// INITIATIVES & CONTENT
+// ============================================================================
+
+model Initiative {
+  id              String           @id @default(cuid())
+  creatorId       String
+  creator         User             @relation("CreatorInitiatives", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  title           String           @db.VarChar(200)
+  slug            String           @unique @db.VarChar(200)
+  intentText      String           @db.VarChar(280)
+  storyText       String?          @db.Text
+  coverUrl        String?
+
+  status          InitiativeStatus @default(DRAFT)
+
+  startDate       DateTime?
+  expectedEndDate DateTime?
+  publishedAt     DateTime?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  milestones      Milestone[]
+  posts           Post[]
+  supportTiers    SupportTier[]
+  purchases       Purchase[]
+  entitlements    Entitlement[]
+  tokens          Token[]
+  forums          Forum[]          @relation("InitiativeForums")
+  snapshots       Snapshot[]
+  offers          AcquisitionOffer[]
+
+  @@index([creatorId])
+  @@index([slug])
+  @@index([status])
+  @@index([createdAt])
+  @@index([publishedAt])
+}
+
+model Milestone {
+  id            String          @id @default(cuid())
+  initiativeId  String
+  initiative    Initiative      @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+
+  title         String          @db.VarChar(200)
+  description   String?         @db.Text
+  position      Int             @default(0)
+  status        MilestoneStatus @default(PENDING)
+
+  completedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([initiativeId])
+  @@index([position])
+  @@index([status])
+  @@unique([initiativeId, position])
+}
+
+model Post {
+  id            String     @id @default(cuid())
+  creatorId     String
+  creator       User       @relation("AuthorPosts", fields: [creatorId], references: [id], onDelete: Cascade)
+  initiativeId  String?
+  initiative    Initiative? @relation(fields: [initiativeId], references: [id], onDelete: SetNull)
+
+  type          PostType   @default(UPDATE)
+  title         String     @db.VarChar(200)
+  body          String     @db.Text
+  mediaUrls     String[]   @default([])
+  visibility    Visibility @default(PUBLIC)
+
+  likeCount     Int        @default(0)
+  commentCount  Int        @default(0)
+
+  publishedAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  comments      Comment[]  @relation("PostComments")
+
+  @@index([creatorId])
+  @@index([initiativeId])
+  @@index([type])
+  @@index([visibility])
+  @@index([publishedAt])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// FORUMS & DISCUSSIONS
+// ============================================================================
+
+model Forum {
+  id              String     @id @default(cuid())
+  scope           ForumScope
+  scopeId         String?
+
+  initiativeId    String?
+  initiative      Initiative? @relation("InitiativeForums", fields: [initiativeId], references: [id], onDelete: Cascade)
+
+  title           String     @db.VarChar(200)
+  description     String?    @db.Text
+  slug            String     @db.VarChar(200)
+
+  isSupporterOnly Boolean    @default(false)
+  isArchived      Boolean    @default(false)
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  threads         Thread[]
+
+  @@index([scope, scopeId])
+  @@index([initiativeId])
+  @@index([slug])
+  @@unique([scope, slug])
+}
+
+model Thread {
+  id          String   @id @default(cuid())
+  forumId     String
+  forum       Forum    @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User     @relation("AuthorThreads", fields: [authorId], references: [id], onDelete: Cascade)
+
+  title       String   @db.VarChar(200)
+  body        String   @db.Text
+
+  isPinned    Boolean  @default(false)
+  isLocked    Boolean  @default(false)
+
+  viewCount   Int      @default(0)
+  replyCount  Int      @default(0)
+
+  lastActivityAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  comments    Comment[] @relation("ThreadComments")
+
+  @@index([forumId])
+  @@index([authorId])
+  @@index([isPinned])
+  @@index([lastActivityAt])
+  @@index([createdAt])
+}
+
+model Comment {
+  id          String   @id @default(cuid())
+  authorId    String
+  author      User     @relation("AuthorComments", fields: [authorId], references: [id], onDelete: Cascade)
+
+  threadId    String?
+  thread      Thread?  @relation("ThreadComments", fields: [threadId], references: [id], onDelete: Cascade)
+  postId      String?
+  post        Post?    @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade)
+
+  parentId    String?
+  parent      Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
+
+  body        String   @db.Text
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([threadId])
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// SUPPORT & FINANCIAL (PRIVATE DATA)
+// ============================================================================
+
+model SupportTier {
+  id            String      @id @default(cuid())
+  initiativeId  String
+  initiative    Initiative  @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+
+  name          String      @db.VarChar(100)
+  description   String?     @db.Text
+  priceCents    Int         // PRIVATE: Never expose to public API
+  perksText     String      @db.Text
+  badgeName     String?     @db.VarChar(50)
+  badgeUrl      String?
+
+  maxQuantity   Int?
+  soldCount     Int         @default(0) // PRIVATE
+
+  visibility    Visibility  @default(PUBLIC)
+  position      Int         @default(0)
+  isActive      Boolean     @default(true)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  purchases     Purchase[]
+  entitlements  Entitlement[]
+  tokens        Token[]
+  offers        AcquisitionOffer[]
+
+  @@index([initiativeId])
+  @@index([isActive])
+  @@index([position])
+}
+
+model Purchase {
+  id            String          @id @default(cuid())
+  buyerId       String
+  buyer         User            @relation("BuyerPurchases", fields: [buyerId], references: [id], onDelete: Cascade)
+  initiativeId  String
+  initiative    Initiative      @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  tierId        String
+  tier          SupportTier     @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  quantity      Int             @default(1)
+
+  // PRIVATE: Financial fields - NEVER expose to public API
+  amountCents   Int
+  feeCents      Int
+  netCents      Int
+
+  provider      PaymentProvider
+  providerRef   String?
+
+  status        String          @default("completed")
+
+  createdAt     DateTime        @default(now())
+
+  @@index([buyerId])
+  @@index([initiativeId])
+  @@index([tierId])
+  @@index([provider])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model Entitlement {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation("UserEntitlements", fields: [userId], references: [id], onDelete: Cascade)
+  initiativeId  String
+  initiative    Initiative       @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  tierId        String
+  tier          SupportTier      @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  quantityActive Int             @default(1)
+  source        EntitlementSource @default(PURCHASE)
+
+  grantedAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([initiativeId])
+  @@index([tierId])
+  @@unique([userId, initiativeId, tierId])
+}
+
+model Token {
+  id            String      @id @default(cuid())
+  initiativeId  String
+  initiative    Initiative  @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  tierId        String
+  tier          SupportTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  tokenRef      String      @unique
+  ownerWallet   String?
+  ownerUserId   String?
+
+  metadata      Json?
+
+  mintedAt      DateTime    @default(now())
+  transferredAt DateTime?
+
+  @@index([initiativeId])
+  @@index([tierId])
+  @@index([ownerWallet])
+  @@index([ownerUserId])
+}
+
+// ============================================================================
+// SNAPSHOTS & OFFERS
+// ============================================================================
+
+model Snapshot {
+  id            String        @id @default(cuid())
+  creatorId     String
+  creator       User          @relation("CreatorSnapshots", fields: [creatorId], references: [id], onDelete: Cascade)
+  initiativeId  String?
+  initiative    Initiative?   @relation(fields: [initiativeId], references: [id], onDelete: SetNull)
+
+  name          String        @db.VarChar(200)
+  description   String?       @db.Text
+
+  filterCriteria Json?
+
+  recordCount   Int           @default(0)
+
+  createdAt     DateTime      @default(now())
+
+  rows          SnapshotRow[]
+
+  @@index([creatorId])
+  @@index([initiativeId])
+  @@index([createdAt])
+}
+
+model SnapshotRow {
+  id            String    @id @default(cuid())
+  snapshotId    String
+  snapshot      Snapshot  @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  ownerUserId   String?
+  ownerWallet   String?
+  tierId        String?
+  quantity      Int       @default(1)
+
+  metadata      Json?
+
+  @@index([snapshotId])
+  @@index([ownerUserId])
+  @@index([ownerWallet])
+}
+
+model AcquisitionOffer {
+  id            String       @id @default(cuid())
+  creatorId     String
+  creator       User         @relation("CreatorOffers", fields: [creatorId], references: [id], onDelete: Cascade)
+  initiativeId  String
+  initiative    Initiative   @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  tierId        String
+  tier          SupportTier  @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  maxQuantity   Int
+  priceCents    Int          // PRIVATE: Never expose to public API
+
+  startsAt      DateTime
+  endsAt        DateTime
+
+  status        OfferStatus  @default(DRAFT)
+
+  acceptedQty   Int          @default(0)
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  acceptances   OfferAcceptance[]
+
+  @@index([creatorId])
+  @@index([initiativeId])
+  @@index([tierId])
+  @@index([status])
+  @@index([startsAt, endsAt])
+}
+
+model OfferAcceptance {
+  id            String           @id @default(cuid())
+  offerId       String
+  offer         AcquisitionOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  accepterId    String
+  accepter      User             @relation("AccepterAcceptances", fields: [accepterId], references: [id], onDelete: Cascade)
+
+  quantity      Int
+  status        AcceptanceStatus @default(PENDING)
+
+  createdAt     DateTime         @default(now())
+  processedAt   DateTime?
+
+  @@index([offerId])
+  @@index([accepterId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// AUDIT & SECURITY
+// ============================================================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String
+  actor       User     @relation("ActorAuditLogs", fields: [actorId], references: [id], onDelete: Cascade)
+
+  action      String   @db.VarChar(100)
+  entityType  String   @db.VarChar(50)
+  entityId    String?
+
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+
+  createdAt   DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  userId        String
+
+  token         String   @unique
+  expiresAt     DateTime
+
+  ipAddress     String?
+  userAgent     String?
+
+  createdAt     DateTime @default(now())
+  lastActiveAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
