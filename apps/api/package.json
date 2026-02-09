@@ -1,0 +1,30 @@
+{
+  "name": "@community/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "@community/database": "workspace:*",
+    "@community/types": "workspace:*",
+    "@community/validators": "workspace:*",
+    "@supabase/supabase-js": "^2.49.0",
+    "stripe": "^18.0.0",
+    "@upstash/redis": "^1.36.0",
+    "@upstash/ratelimit": "^2.0.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.8.0"
+  }
+}
