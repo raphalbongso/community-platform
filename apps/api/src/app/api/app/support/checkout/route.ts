@@ -6,9 +6,15 @@ import { applyRateLimit } from "../../../../../middleware/rateLimiter";
 import { success, error, handleRequest } from "../../../../../utils/response";
 import { checkoutSchema } from "@community/validators";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-03-31.basil",
-});
+let _stripe: Stripe | null = null;
+function getStripe() {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: "2025-08-27.basil",
+    });
+  }
+  return _stripe;
+}
 
 export async function POST(request: NextRequest) {
   return handleRequest(async () => {
@@ -47,7 +53,7 @@ export async function POST(request: NextRequest) {
       return error("BAD_REQUEST", "Not enough availability for this tier", 400);
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
       line_items: [

@@ -3,10 +3,12 @@ import { type NextRequest } from "next/server";
 import type { AuthContext, Permission, UserRole } from "@community/types";
 import { prisma } from "@community/database";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   FAN: [
@@ -49,7 +51,7 @@ export async function authenticateRequest(
   const {
     data: { user: supabaseUser },
     error,
-  } = await supabase.auth.getUser(token);
+  } = await getSupabase().auth.getUser(token);
 
   if (error || !supabaseUser) return null;
 

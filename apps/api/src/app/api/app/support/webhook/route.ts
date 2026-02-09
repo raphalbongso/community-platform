@@ -2,11 +2,15 @@ import { type NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@community/database";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-03-31.basil",
-});
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+let _stripe: Stripe | null = null;
+function getStripe() {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: "2025-08-27.basil",
+    });
+  }
+  return _stripe;
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -21,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
+    event = getStripe().webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch {
     return NextResponse.json(
       { success: false, error: { code: "BAD_REQUEST", message: "Invalid webhook signature" } },

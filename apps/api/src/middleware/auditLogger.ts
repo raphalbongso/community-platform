@@ -1,5 +1,5 @@
 import type { AuthContext } from "@community/types";
-import { prisma } from "@community/database";
+import { prisma, Prisma } from "@community/database";
 
 export type AuditAction =
   | "VIEW_FINANCIAL_DATA"
@@ -40,7 +40,7 @@ export function logAudit(entry: AuditLogEntry): void {
         action: entry.action,
         entityType: entry.resourceType,
         entityId: entry.resourceId,
-        metadata: entry.metadata ?? {},
+        metadata: (entry.metadata ?? {}) as Prisma.InputJsonValue,
         ipAddress: entry.ipAddress ?? null,
       },
     })

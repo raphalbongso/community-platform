@@ -2,20 +2,22 @@
 
 import { type ReactNode, useEffect } from "react";
 
-interface ModalProps {
-  isOpen: boolean;
+export interface ModalProps {
+  isOpen?: boolean;
+  open?: boolean;
   onClose: () => void;
   title?: string;
   children: ReactNode;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, open, onClose, title, children }: ModalProps) {
+  const visible = isOpen ?? open ?? false;
   useEffect(() => {
-    document.body.style.overflow = isOpen ? "hidden" : "";
+    document.body.style.overflow = visible ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [isOpen]);
+  }, [visible]);
 
-  if (!isOpen) return null;
+  if (!visible) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
